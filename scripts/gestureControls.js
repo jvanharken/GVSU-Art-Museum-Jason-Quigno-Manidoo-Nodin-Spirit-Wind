@@ -1,0 +1,4 @@
+export class GestureControls{
+  constructor(domElement,{onScale,onRotate}={}){this.dom=domElement;this.onScale=onScale||(()=>{});this.onRotate=onRotate||(()=>{});this.prev=null;this._bind();}
+  _bind(){this.dom.addEventListener('touchstart',e=>this._onTouch(e),{passive:false});this.dom.addEventListener('touchmove',e=>this._onTouch(e),{passive:false});this.dom.addEventListener('touchend',e=>this._onTouch(e),{passive:false});}
+  _onTouch(e){if(e.touches.length===2){const dx=e.touches[0].clientX-e.touches[1].clientX;const dy=e.touches[0].clientY-e.touches[1].clientY;const dist=Math.hypot(dx,dy);const angle=Math.atan2(dy,dx);if(this.prev&&this.prev.touches===2){const scale=dist/this.prev.dist;const rot=angle-this.prev.angle;this.onScale&&this.onScale(scale);this.onRotate&&this.onRotate(rot);}this.prev={touches:2,dist,angle};}else if(e.touches.length===0){this.prev=null;}}}

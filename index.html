@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+    />
+    <title>8th Wall AR — Chroma-Keyed Video Placement</title>
+    <link rel="stylesheet" href="./styles/style.css" />
+    <script src="https://cdn.8thwall.com/web/aframe/8.7.0/aframe.min.js"></script>
+    <script
+      defer
+      src="https://cdn.8thwall.com/web/xrextras/xrextras.js"
+    ></script>
+    <script
+      defer
+      src="https://apps.8thwall.com/xrweb?appKey=YOUR_APP_KEY"
+    ></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/PLYLoader.js"></script>
+    <script defer src="./components/chroma-key-shader.js"></script>
+    <script defer src="./components/gesture-controls.js"></script>
+    <script defer src="./components/ply-entity.js"></script>
+    <script defer src="./scripts/video-sync.js"></script>
+    <script type="module" src="./scripts/app.js"></script>
+  </head>
+  <body>
+    <div id="ui">
+      <div id="instructions" class="panel">
+        Move your phone to scan a <b>horizontal surface</b>. Tap to place the
+        video.
+      </div>
+      <div id="topbar">
+        <button id="resetBtn" class="ghost">Reset Placement</button>
+      </div>
+      <button id="playBtn" class="pill" disabled>▶︎ Play Video</button>
+    </div>
+
+    <a-scene
+      xrweb="allowedDevices: any"
+      xrextras-almost-there
+      xrextras-loading
+      renderer="colorManagement: true; physicallyCorrectLights: true; antialias: true; alpha: true"
+      webxr="requiredFeatures: hit-test; optionalFeatures: dom-overlay; overlayElement: #ui"
+    >
+      <a-entity id="camera" camera position="0 1.6 0" look-controls></a-entity>
+
+      <a-entity
+        light="type: hemisphere; intensity: 1.0; groundColor: #666"
+        position="0 2 0"
+      ></a-entity>
+      <a-entity
+        light="type: directional; intensity: 0.7"
+        position="1 3 2"
+      ></a-entity>
+
+      <a-entity
+        id="reticle"
+        geometry="primitive: ring; radiusInner: 0.045; radiusOuter: 0.06"
+        material="color: #00e676; shader: flat; opacity: 0.9"
+        xrextras-hittest
+        visible="false"
+      >
+      </a-entity>
+
+      <a-entity id="placedRoot" visible="false" gesture-controls>
+        <a-entity
+          id="shadow"
+          geometry="primitive: plane; width: 0.9; height: 0.5"
+          rotation="-90 0 0"
+          position="0 0.001 0"
+          material="shader: oval-shadow; opacity: 0.85"
+        >
+        </a-entity>
+
+        <a-entity
+          id="videoPlane"
+          geometry="primitive: plane; width: 0.8; height: 0.45"
+          rotation="0 0 0"
+          chroma-key-material="src: #greenscreen; keyColor: 0.13333334 0.72941178 0.18039216; similarity: 0.23; smoothness: 0.07; spill: 0.10"
+        >
+        </a-entity>
+
+        <a-entity
+          id="plyEntity"
+          ply-entity="src: ./assets/splat.ply; scale: 0.5 0.5 0.5"
+          position="0 0 -0.2"
+        >
+        </a-entity>
+      </a-entity>
+
+      <a-assets timeout="15000">
+        <video
+          id="greenscreen"
+          src="./assets/greenscreen.mp4"
+          crossorigin="anonymous"
+          preload="metadata"
+          playsinline
+          webkit-playsinline
+          loop
+        ></video>
+      </a-assets>
+    </a-scene>
+  </body>
+</html>
