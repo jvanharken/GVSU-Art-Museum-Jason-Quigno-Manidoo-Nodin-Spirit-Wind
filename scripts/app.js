@@ -9,7 +9,7 @@ const SIMILARITY = 0.23, SMOOTHNESS = 0.07, SPILL = 0.10;
 let renderer, scene, camera, hitTestSource=null, hitTestSourceRequested=false, localSpace=null;
 let reticleEl, enterBtn, playBtn, resetBtn, instructions, placeHint;
 let video, videoTexture, videoMesh, shadowMesh, placedRoot, plyMesh;
-let lastHitPose=null, placed=false, baseScale=1;
+let lastHitPose=null, placed=false, baseScale=1, plyFadeState='hidden';
 
 init();
 
@@ -46,7 +46,25 @@ function setupMedia(){
   shadowMesh=new THREE.Mesh(new THREE.PlaneGeometry(0.9,0.5), makeOvalShadowMaterial(0.85)); shadowMesh.rotation.x=-Math.PI/2; shadowMesh.position.y=0.001;
   placedRoot=new THREE.Group(); placedRoot.visible=false; placedRoot.add(shadowMesh); placedRoot.add(videoMesh); scene.add(placedRoot);
   const loader=new THREE.PLYLoader(); loader.load(PLY_SRC,(g)=>{ g.computeVertexNormals(); const m=new THREE.MeshStandardMaterial({color:0xffffff,metalness:0.0,roughness:1.0,transparent:true,opacity:0.0}); plyMesh=new THREE.Mesh(g,m); plyMesh.position.set(0,0,-0.2); plyMesh.scale.set(0.5,0.5,0.5); placedRoot.add(plyMesh); });
-  video.addEventListener('timeupdate',()=>{ if(!isFinite(video.duration)||video.duration<=0||!plyMesh)return; const t=video.currentTime,d=video.duration; const tIn=d*0.5, tOut=Math.max(d-5.0,d*0.8); if(t>=tIn && plyMesh.material.opacity<1.0) tweenOpacity(plyMesh.material, plyMesh.material.opacity,1.0,1.0); if(t>=tOut && plyMesh.material.opacity>0.0) tweenOpacity(plyMesh.material, plyMesh.material.opacity,0.0,1.0); });
+  video.addEventListener('timeupdate', () => {
+    if (!isFinite(video.duration) || video.duration <= 0 || !plyMesh) return;
+    const t = video.currentTime;
+    const d = video.duration;
+    if (t < 1 && (plyFadeState === 'visible' || plyFadeState === 'fading-out')) {
+      plyMesh.material.opacity = 0.0;
+      plyFadeState = 'hidden';
+    }
+    const tIn = d * 0.5;
+    const tOut = Math.max(d - 5.0, d * 0.8);
+    if (t >= tIn && plyFadeState === 'hidden') {
+      plyFadeState = 'fading-in';
+      tweenOpacity(plyMesh.material, 0.0, 1.0, 1.0, () => { plyFadeState = 'visible'; });
+    }
+    if (t >= tOut && plyFadeState === 'visible') {
+      plyFadeState = 'fading-out';
+      tweenOpacity(plyMesh.material, 1.0, 0.0, 1.0, () => { plyFadeState = 'hidden'; });
+    }
+  });
 }
 
 async function startAR(){
@@ -70,6 +88,19 @@ function resetPlacement(){ placed=false; placedRoot.visible=false; document.getE
 
 async function togglePlay(){ try{ if(video.paused){ await video.play(); document.getElementById('playBtn').textContent='⏸ Pause'; } else { video.pause(); document.getElementById('playBtn').textContent='▶︎ Play Video'; } }catch(e){ console.warn('Play failed',e); } }
 
-function tweenOpacity(mat, from, to, sec){ const start=performance.now(); function step(now){ const t=Math.min(1,(now-start)/(sec*1000)); mat.opacity=from+(to-from)*t; mat.needsUpdate=true; if(t<1)requestAnimationFrame(step); } requestAnimationFrame(step); }
+function tweenOpacity(mat, from, to, sec, onComplete) {
+  const start = performance.now();
+  function step(now) {
+    const t = Math.min(1, (now - start) / (sec * 1000));
+    mat.opacity = from + (to - from) * t;
+    mat.needsUpdate = true;
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      if (onComplete) onComplete();
+    }
+  }
+  requestAnimationFrame(step);
+}
 
 async function render(ts,frame){ const session=renderer.xr.getSession(); if(frame&&session){ const ref=renderer.xr.getReferenceSpace(); if(!hitTestSourceRequested){ const viewer=await session.requestReferenceSpace('viewer'); hitTestSource=await session.requestHitTestSource({space:viewer}); localSpace=ref; hitTestSourceRequested=true; } if(hitTestSource){ const hits=frame.getHitTestResults(hitTestSource); if(hits.length>0){ const hit=hits[0]; lastHitPose=hit.getPose(localSpace); document.getElementById('reticle').style.display='block'; document.getElementById('reticle').style.opacity='1'; } else { document.getElementById('reticle').style.opacity='0.3'; } } renderer.render(scene,camera); }
